@@ -1,10 +1,10 @@
 # clj-scryer
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure library that provides a cider-esque inspector using [orchard.inspect](https://github.com/clojure-emacs/orchard/blob/master/src/orchard/inspect.clj)
 
 ## Usage
 
-FIXME
+`(wmatson.clj-scryer.core/inspect your-value)`
 
 ## License
 
