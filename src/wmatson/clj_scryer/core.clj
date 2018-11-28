@@ -6,8 +6,6 @@
 (defonce current-inspector (atom (assoc (ori/fresh) :page-size 16)))
 (defonce ^:private frame* (JFrame.))
 
-#_(:rendered (swap! current-inspector ori/start (map #(hash-map :num %) (range))))
-
 ;;Lifted from orchard.inspect/inspect-print and modified
 (defn print-inspector
   ([] (print-inspector @current-inspector))
@@ -22,7 +20,7 @@
     (.add (.getContentPane frame) panel)
     panel))
 
-(defn- new-button [label action]
+(defn- new-button [^String label action]
   (doto (JButton. label)
     (.addActionListener (reify ActionListener
                                  (actionPerformed [_ _] (action))))))
@@ -34,23 +32,32 @@
        getContentPane
        removeAll)
    (.setLayout frame* (BoxLayout. (.getContentPane frame*) BoxLayout/Y_AXIS))
-   (.add (.getContentPane frame*) (new-button "Pop Up" #(do (swap! current-inspector ori/up)
-                                                            (render-inspector))))
+   (doto (new-panel frame*)
+     (.add (new-button "Prev Page" #(swap! current-inspector ori/prev-page)))
+     (.add (new-button "Pop Up" #(swap! current-inspector ori/up)))
+     (.add (new-button "Next Page" #(swap! current-inspector ori/next-page))))
    (loop [[next-value & remaining] (:rendered @current-inspector)
           current-container (new-panel frame*)]
      (when next-value
        (condp = (first next-value)
          :newline (recur remaining (new-panel frame*))
-         :value (do (.add current-container (JLabel. (second next-value)))
-                    (.add current-container (new-button "Drill Down" #(do (swap! current-inspector ori/down (last next-value))
-                                                                          (render-inspector))))
+         :value (do (.add current-container (JLabel. ^String (second next-value)))
+                    (.add current-container (new-button "Drill Down" #(swap! current-inspector ori/down (last next-value))))
                     (recur remaining current-container))
          (do
-           (.add current-container (JLabel. next-value))
+           (.add current-container (JLabel. ^String next-value))
            (recur remaining current-container)))))
     (.pack frame*)
     (.setVisible frame* true)))
 
+(add-watch current-inspector :rerender (fn [& _] (render-inspector)))
+
 (defn inspect [value]
-  (swap! current-inspector ori/start value)
-  (render-inspector))
+  ;;Prevent lazy-seqs from being fully-evaluated if called from repl
+  (do (swap! current-inspector ori/start value)
+      nil))
+
+(comment
+  (inspect (map first (iterate (fn [[a b :as fib]]
+                                 (cons (+ a b) fib))
+                               [1 1]))))
