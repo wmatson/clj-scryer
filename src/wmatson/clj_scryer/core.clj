@@ -4,7 +4,7 @@
   (:require [orchard.inspect :as ori]))
 
 (defonce current-inspector (atom (assoc (ori/fresh) :page-size 16)))
-(defonce ^:private frame* (JFrame.))
+(defonce ^:private frame-singleton (JFrame.))
 
 ;;Lifted from orchard.inspect/inspect-print and modified
 (defn print-inspector
@@ -25,30 +25,28 @@
     (.addActionListener (reify ActionListener
                                  (actionPerformed [_ _] (action))))))
 
-(defn render-inspector
-  ([] (render-inspector @current-inspector))
-  ([inspector]
-   (.. frame*
-       getContentPane
-       removeAll)
-   (.setLayout frame* (BoxLayout. (.getContentPane frame*) BoxLayout/Y_AXIS))
-   (doto (new-panel frame*)
-     (.add (new-button "Prev Page" #(swap! current-inspector ori/prev-page)))
-     (.add (new-button "Pop Up" #(swap! current-inspector ori/up)))
-     (.add (new-button "Next Page" #(swap! current-inspector ori/next-page))))
-   (loop [[next-value & remaining] (:rendered @current-inspector)
-          current-container (new-panel frame*)]
-     (when next-value
-       (condp = (first next-value)
-         :newline (recur remaining (new-panel frame*))
-         :value (do (.add current-container (JLabel. ^String (second next-value)))
-                    (.add current-container (new-button "Drill Down" #(swap! current-inspector ori/down (last next-value))))
-                    (recur remaining current-container))
-         (do
-           (.add current-container (JLabel. ^String next-value))
-           (recur remaining current-container)))))
-    (.pack frame*)
-    (.setVisible frame* true)))
+(defn render-inspector []
+  (.. frame-singleton
+      getContentPane
+      removeAll)
+  (.setLayout frame-singleton (BoxLayout. (.getContentPane frame-singleton) BoxLayout/Y_AXIS))
+  (doto (new-panel frame-singleton)
+    (.add (new-button "Prev Page" #(swap! current-inspector ori/prev-page)))
+    (.add (new-button "Pop Up" #(swap! current-inspector ori/up)))
+    (.add (new-button "Next Page" #(swap! current-inspector ori/next-page))))
+  (loop [[next-value & remaining] (:rendered @current-inspector)
+         current-container (new-panel frame-singleton)]
+    (when next-value
+      (condp = (first next-value)
+        :newline (recur remaining (new-panel frame-singleton))
+        :value (do (.add current-container (JLabel. ^String (second next-value)))
+                   (.add current-container (new-button "Drill Down" #(swap! current-inspector ori/down (last next-value))))
+                   (recur remaining current-container))
+        (do
+          (.add current-container (JLabel. ^String next-value))
+          (recur remaining current-container)))))
+  (.pack frame-singleton)
+  (.setVisible frame-singleton true))
 
 (add-watch current-inspector :rerender (fn [& _] (render-inspector)))
 
