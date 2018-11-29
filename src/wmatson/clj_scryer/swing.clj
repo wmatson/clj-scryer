@@ -1,4 +1,4 @@
-(ns wmatson.clj-scryer.core
+(ns wmatson.clj-scryer.swing
   (:import [javax.swing JFrame JLabel JButton BoxLayout JPanel UIManager JScrollPane]
            (java.awt.event ActionListener)
            (java.awt BorderLayout Toolkit Dimension))
@@ -32,17 +32,17 @@
                                  (actionPerformed [_ _] (action))))))
 
 (defn render-inspector []
-  (.. frame-singleton
-      getContentPane
-      removeAll)
+  (-> frame-singleton
+      .getContentPane
+      .removeAll)
   (.setLayout frame-singleton (BorderLayout.))
   (let [main-panel (JPanel.)
         top-bar (JPanel.)]
     (.setLayout main-panel (BoxLayout. main-panel BoxLayout/Y_AXIS))
     (doto top-bar
-      (.add (new-button "Prev Page" #(swap! current-inspector ori/prev-page)))
-      (.add (new-button "Pop Up" #(swap! current-inspector ori/up)))
-      (.add (new-button "Next Page" #(swap! current-inspector ori/next-page))))
+      (.add ^JPanel (new-button "Prev Page" #(swap! current-inspector ori/prev-page)))
+      (.add ^JPanel (new-button "Pop Up" #(swap! current-inspector ori/up)))
+      (.add ^JPanel (new-button "Next Page" #(swap! current-inspector ori/next-page))))
     (loop [[next-value & remaining] (:rendered @current-inspector)
            current-container (add-panel main-panel)]
       (when next-value
