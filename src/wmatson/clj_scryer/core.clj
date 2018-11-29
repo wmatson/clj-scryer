@@ -1,10 +1,16 @@
 (ns wmatson.clj-scryer.core
-  (:import [javax.swing JFrame JLabel JButton BoxLayout JPanel]
-           (java.awt.event ActionListener))
+  (:import [javax.swing JFrame JLabel JButton BoxLayout JPanel UIManager JScrollPane]
+           (java.awt.event ActionListener)
+           (java.awt BorderLayout Toolkit Dimension))
   (:require [orchard.inspect :as ori]))
 
 (defonce current-inspector (atom (assoc (ori/fresh) :page-size 16)))
-(defonce ^:private frame-singleton (JFrame.))
+(defonce ^:private frame-singleton (do (UIManager/setLookAndFeel (UIManager/getSystemLookAndFeelClassName))
+                                       (let [screen-size (.getScreenSize (Toolkit/getDefaultToolkit))
+                                             starting-width (/ (.getWidth screen-size) 2)
+                                             starting-height (* 3 (/ (.getWidth screen-size) 4))]
+                                         (doto (JFrame. "clj-scryer")
+                                           (.setSize (Dimension. starting-width starting-height))))))
 
 ;;Lifted from orchard.inspect/inspect-print and modified
 (defn print-inspector
@@ -15,9 +21,9 @@
        (doseq [component (:rendered inspector)]
          (ori/inspect-print-component component))))))
 
-(defn- new-panel [frame]
+(defn- add-panel [container]
   (let [panel (JPanel.)]
-    (.add (.getContentPane frame) panel)
+    (.add container panel)
     panel))
 
 (defn- new-button [^String label action]
@@ -29,23 +35,30 @@
   (.. frame-singleton
       getContentPane
       removeAll)
-  (.setLayout frame-singleton (BoxLayout. (.getContentPane frame-singleton) BoxLayout/Y_AXIS))
-  (doto (new-panel frame-singleton)
-    (.add (new-button "Prev Page" #(swap! current-inspector ori/prev-page)))
-    (.add (new-button "Pop Up" #(swap! current-inspector ori/up)))
-    (.add (new-button "Next Page" #(swap! current-inspector ori/next-page))))
-  (loop [[next-value & remaining] (:rendered @current-inspector)
-         current-container (new-panel frame-singleton)]
-    (when next-value
-      (condp = (first next-value)
-        :newline (recur remaining (new-panel frame-singleton))
-        :value (do (.add current-container (JLabel. ^String (second next-value)))
-                   (.add current-container (new-button "Drill Down" #(swap! current-inspector ori/down (last next-value))))
-                   (recur remaining current-container))
-        (do
-          (.add current-container (JLabel. ^String next-value))
-          (recur remaining current-container)))))
-  (.pack frame-singleton)
+  (.setLayout frame-singleton (BorderLayout.))
+  (let [main-panel (JPanel.)
+        top-bar (JPanel.)]
+    (.setLayout main-panel (BoxLayout. main-panel BoxLayout/Y_AXIS))
+    (doto top-bar
+      (.add (new-button "Prev Page" #(swap! current-inspector ori/prev-page)))
+      (.add (new-button "Pop Up" #(swap! current-inspector ori/up)))
+      (.add (new-button "Next Page" #(swap! current-inspector ori/next-page))))
+    (loop [[next-value & remaining] (:rendered @current-inspector)
+           current-container (add-panel main-panel)]
+      (when next-value
+        (condp = (first next-value)
+          :newline (recur remaining (add-panel main-panel))
+          :value (do (.add current-container (JLabel. ^String (second next-value)))
+                     (.add current-container (new-button ">" #(swap! current-inspector ori/down (last next-value))))
+                     (recur remaining current-container))
+          (do
+            (.add current-container (JLabel. ^String next-value))
+            (recur remaining current-container)))))
+    (doto (.getContentPane frame-singleton)
+      (.add top-bar BorderLayout/NORTH)
+      (.add (doto (JScrollPane. main-panel)
+              (-> .getVerticalScrollBar (.setUnitIncrement 16)))
+            BorderLayout/CENTER)))
   (.setVisible frame-singleton true))
 
 (add-watch current-inspector :rerender (fn [& _] (render-inspector)))
