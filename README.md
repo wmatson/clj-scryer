@@ -4,7 +4,9 @@ A Clojure library that provides a cider-esque inspector using [orchard.inspect](
 
 ## Usage
 
-`(wmatson.clj-scryer.core/inspect your-value)`
+`(wmatson.clj-scryer.swing/inspect your-value)`
+or
+`(wmatson.clj-scryer.hiccup/inspect your-value)`
 
 ## License
 
